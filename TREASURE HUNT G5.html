@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>TREASURE HUNT - Golden Gems</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', 'Poppins', sans-serif; }
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+        .split { position: absolute; width: 50%; height: 100vh; overflow: hidden; z-index: 10; pointer-events: none; transition: all 0.2s ease; }
+        #player1-view { left: 0; border-right: 6px solid rgba(200,220,255,0.9); }
+        #player2-view { right: 0; border-left: 6px solid rgba(180,210,255,0.9); }
+        .player-card {
+            position: absolute; top: 20px; padding: 12px 28px; border-radius: 80px;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(15px); border: 2px solid;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6); z-index: 30; display: flex;
+            align-items: center; gap: 18px; pointer-events: none; font-weight: bold;
+        }
+        #p1-card { left: 20px; border-color: #ffcc88; background: linear-gradient(135deg, rgba(0,0,0,0.85), rgba(80,60,40,0.85)); }
+        #p2-card { right: 20px; border-color: #88aaff; background: linear-gradient(135deg, rgba(0,0,0,0.85), rgba(40,60,100,0.85)); }
+        .player-avatar { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 38px; background: rgba(0,0,0,0.5); border: 2px solid; }
+        #p1-avatar { border-color: #ffcc88; }
+        #p2-avatar { border-color: #88aaff; }
+        .player-info { color: white; text-shadow: 0 0 8px black; }
+        .player-name { font-size: 22px; font-weight: bold; }
+        .score-value { font-size: 38px; font-weight: bold; background: linear-gradient(135deg, #fff0c0, #ffdd99); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .effect-badge { font-size: 14px; background: rgba(0,0,0,0.6); border-radius: 30px; padding: 4px 12px; display: inline-block; margin-top: 5px; font-family: monospace; }
+        .shield-badge { font-size: 14px; background: rgba(68,170,136,0.8); border-radius: 30px; padding: 4px 12px; display: inline-block; margin-top: 5px; font-family: monospace; color: white; }
+        .timer-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); padding: 12px 40px; border-radius: 70px; border: 2px solid #aaddff; z-index: 40; text-align: center; pointer-events: none; }
+        .timer-value { color: #ccffff; font-size: 48px; font-weight: bold; text-shadow: 0 0 30px #88ccff; }
+        .controls-panel { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); padding: 15px 50px; border-radius: 80px; border: 1px solid #aaffdd; z-index: 50; display: flex; gap: 80px; font-weight: bold; pointer-events: none; }
+        .control-title { color: #aaffdd; }
+        .key { background: rgba(20,20,40,0.9); border: 1px solid #aaffdd; border-radius: 14px; padding: 6px 16px; font-weight: bold; color: #aaffdd; font-family: monospace; }
+        .minimap { position: absolute; bottom: 25px; right: 25px; width: 260px; height: 260px; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); border-radius: 20px; border: 3px solid #ffdd99; overflow: hidden; z-index: 45; pointer-events: none; box-shadow: 0 0 20px rgba(255,200,100,0.5); }
+        .minimap canvas { width: 100%; height: 100%; display: block; }
+        .gems-left { position: absolute; bottom: 25px; left: 25px; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); padding: 12px 28px; border-radius: 60px; border: 2px solid #ff99cc; color: white; z-index: 45; display: flex; gap: 18px; font-weight: bold; font-size: 20px; }
+        .gems-count { font-size: 38px; color: #ffccff; }
+        .powerup-notification { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); padding: 10px 24px; border-radius: 50px; color: #ffdd88; font-weight: bold; font-size: 20px; text-align: center; pointer-events: none; z-index: 60; transition: opacity 0.3s; opacity: 0; white-space: nowrap; border: 1px solid #ffaa66; }
+        .winner-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle, #ffffff, #cceeff); padding: 50px 90px; border-radius: 70px; border: 5px solid white; box-shadow: 0 0 150px rgba(255,255,200,0.9); z-index: 200; text-align: center; display: none; animation: explodeIn 0.5s cubic-bezier(0.34,1.3,0.8,1); pointer-events: none; }
+        @keyframes explodeIn { 0% { transform: translate(-50%, -50%) scale(0) rotate(-15deg); opacity: 0; } 70% { transform: translate(-50%, -50%) scale(1.1); } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        .winner-text { font-size: 70px; font-weight: 900; color: #2c3e66; }
+        
+        .action-buttons-center {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 200;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            padding: 12px 30px;
+            border-radius: 60px;
+            border: 1px solid rgba(255,255,200,0.5);
+            pointer-events: auto;
+        }
+        .action-btn {
+            background: linear-gradient(135deg, rgba(80,100,150,0.95), rgba(60,80,120,0.95));
+            color: white;
+            border: 2px solid rgba(255,255,200,0.8);
+            padding: 10px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            font-size: 18px;
+            font-family: inherit;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .action-btn:hover { transform: scale(1.05); background: linear-gradient(135deg, #3a6ea5, #2a5a8a); }
+        .action-btn.pause-btn-center { background: linear-gradient(135deg, #c97e5a, #b86a46); }
+        .action-btn.reset-btn-center { background: linear-gradient(135deg, #3a6ea5, #2a5a8a); }
+        .action-btn.exit-btn-center { background: linear-gradient(135deg, #aa6644, #8a4a2a); }
+        
+        .music-btn-container {
+            position: absolute;
+            bottom: 300px;
+            right: 25px;
+            z-index: 46;
+            pointer-events: auto;
+        }
+        .music-toggle-game {
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            border: 2px solid #aaddff;
+            color: #aaddff;
+            padding: 12px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18px;
+            transition: all 0.2s;
+            font-family: monospace;
+            width: 140px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .music-toggle-game:hover { transform: scale(1.03); background: rgba(50,80,120,0.9); border-color: #ffdd99; color: #ffdd99; }
+        
+        @media (max-width: 800px) {
+            .controls-panel { padding: 10px 25px; gap: 40px; }
+            .winner-text { font-size: 42px; }
+            .action-buttons-center { bottom: 70px; padding: 8px 20px; gap: 12px; }
+            .action-btn { padding: 6px 18px; font-size: 14px; }
+            .music-btn-container { bottom: 280px; right: 15px; }
+            .music-toggle-game { padding: 8px 12px; font-size: 14px; width: 110px; }
+            .minimap { width: 180px; height: 180px; bottom: 15px; right: 15px; }
+        }
+
+        .start-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0a2f2a, #1a4f3a);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            font-family: 'Poppins', 'Segoe UI', sans-serif;
+        }
+        .start-panel {
+            background: rgba(0,0,0,0.85);
+            border-radius: 40px;
+            padding: 20px 40px;
+            text-align: center;
+            border: 3px solid #ffcc88;
+            box-shadow: 0 0 60px rgba(255,200,100,0.5);
+            max-width: 650px;
+            width: 85%;
+            backdrop-filter: blur(15px);
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .start-title { font-size: 48px; font-weight: bold; background: linear-gradient(135deg, #ffdd99, #ffaa66); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 5px; }
+        .start-sub { font-size: 24px; color: #ffcc88; margin-bottom: 20px; }
+        .time-selector { display: flex; justify-content: center; gap: 20px; margin: 15px 0; }
+        .time-btn { background: #2a4a3a; border: 2px solid #ffcc88; color: #ffdd99; padding: 8px 24px; border-radius: 50px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 18px; }
+        .time-btn.active { background: #ffaa66; color: #2a2a1a; border-color: white; box-shadow: 0 0 15px #ffaa66; }
+        .instructions { text-align: left; background: rgba(0,0,0,0.5); padding: 12px 18px; border-radius: 20px; margin: 15px 0; color: #eef; font-size: 14px; }
+        .instructions h3 { color: #ffaa66; margin: 0 0 6px 0; }
+        .start-btn, .music-toggle, .exit-start-btn { background: #ffaa66; border: none; padding: 10px 24px; font-size: 18px; font-weight: bold; border-radius: 40px; margin: 6px; cursor: pointer; transition: 0.2s; color: #2c2c2c; }
+        .exit-start-btn { background: #aa6644; color: white; }
+        .music-toggle { background: #88aacc; color: white; }
+        .flex-buttons { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="player1-view" class="split"></div>
+        <div id="player2-view" class="split"></div>
+        <div id="p1-card" class="player-card"><div id="p1-avatar" class="player-avatar">🎩</div><div class="player-info"><div class="player-name">✦ FROST WARDEN ✦</div><div><span id="p1-score" class="score-value">0</span></div><div id="p1-effect" class="effect-badge"></div><div id="p1-shield" class="shield-badge">🛡️</div></div></div>
+        <div id="p2-card" class="player-card"><div class="player-info"><div class="player-name">✦ ICE RANGER ✦</div><div><span id="p2-score" class="score-value">0</span></div><div id="p2-effect" class="effect-badge"></div><div id="p2-shield" class="shield-badge">🛡️</div></div><div id="p2-avatar" class="player-avatar">❄️</div></div>
+        <div class="timer-container"><div>❄️ TIME LEFT</div><div id="timer" class="timer-value">180</div></div>
+        <div class="gems-left"><span>✨💎✨</span><span id="gems-left-count" class="gems-count">70</span></div>
+        <div class="minimap"><canvas id="minimap-canvas" width="260" height="260"></canvas></div>
+        <div class="music-btn-container"><button id="music-toggle-game" class="music-toggle-game">🎵 MUSIC ON</button></div>
+        <div class="action-buttons-center">
+            <button id="pause-btn-center" class="action-btn pause-btn-center">⏸️ PAUSE</button>
+            <button id="reset-btn-center" class="action-btn reset-btn-center">🌀 RESTART</button>
+            <button id="exit-btn-center" class="action-btn exit-btn-center">🚪 EXIT</button>
+        </div>
+        <div class="controls-panel"><div><div class="control-title">🏹 PLAYER 1</div><div><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span></div></div><div><div class="control-title">⚔️ PLAYER 2</div><div><span class="key">↑</span><span class="key">←</span><span class="key">↓</span><span class="key">→</span></div></div></div>
+        <div id="powerup-notification" class="powerup-notification"></div>
+        <div id="winner-message" class="winner-message"><div id="winner-text" class="winner-text"></div></div>
+    </div>
+
+    <div id="start-overlay" class="start-overlay">
+        <div class="start-panel">
+            <div class="start-title">🏆 TREASURE HUNT 🏆</div>
+            <div class="start-sub">⚡ 70 GOLDEN GEMS ⚡</div>
+            <div class="time-selector">
+                <button data-time="60" class="time-btn">1 MIN</button>
+                <button data-time="180" class="time-btn active">3 MIN</button>
+                <button data-time="300" class="time-btn">5 MIN</button>
+            </div>
+            <div class="instructions">
+                <h3>📜 HOW TO PLAY</h3>
+                <ul style="margin:5px 0; padding-left:20px;">
+                    <li><strong>Goal:</strong> Collect 70 GOLDEN GEMS scattered across the map!</li>
+                    <li><strong>Controls:</strong> Player 1 (WASD) | Player 2 (Arrow Keys)</li>
+                    <li><strong>🐻 Bears:</strong> Realistic bears that steal your gems! (Shield blocks theft)</li>
+                    <li><strong>💎 7 POWER-UPS:</strong> ⚡Speed 🐢Slow 💜Steal 🪓Cut 🌪️Teleport 🧲Magnet 🛡️Shield</li>
+                    <li><strong>🤝 DIZZY:</strong> If players collide, both get dizzy for 2 seconds!</li>
+                    <li><strong>✨ All power-ups spawn everywhere constantly! ✨</strong></li>
+                </ul>
+            </div>
+            <div class="flex-buttons">
+                <button id="start-game-btn" class="start-btn">▶ START GAME</button>
+                <button id="music-toggle-start" class="music-toggle">🎵 MUSIC ON</button>
+                <button id="exit-start-btn" class="exit-start-btn">🚪 EXIT GAME</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.128.0/build/three.module.js" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        let gameStarted = false;
+        let audioElement = null;
+        let musicEnabled = true;
+        let selectedTime = 180;
+        
+        const C = {
+            TOTAL_GEMS: 70, MAP_BOUNDARY: 44, BASE_SPEED: 10.5,
+            COLLECT_RADIUS: 2.4, TREE_COUNT: 85,
+            POWERUP_SPAWN_INTERVAL: 2.5, POWERUP_DURATION: 6,
+            SPEED_BOOST_MULT: 1.6, SPEED_SLOW_MULT: 0.6,
+            TREE_CUT_RADIUS: 5, TREE_CUT_DURATION: 10,
+            BEAR_SPAWN_INTERVAL: 12, BEAR_SPEED: 3.6, BEAR_ATTACK_COOLDOWN: 1.6,
+            MAGNET_RADIUS: 8,
+            DIZZY_DURATION: 2.0, DIZZY_SLOW_MULT: 0.45,
+            SHIELD_DURATION: 10,
+            MAX_POWERUPS: 15
+        };
+
+        const state = {
+            p1Score:0, p2Score:0, timeLeft:180, gameActive:false, paused:false,
+            gems:[], obstacles:[], trees:[], powerups:[], bears:[],
+            p1Effects:[], p2Effects:[], p1SpeedMult:1, p2SpeedMult:1,
+            p1ShieldEnd:0, p2ShieldEnd:0, p1DizzyEnd:0, p2DizzyEnd:0,
+            cutTrees:[], lastPowerupSpawn:0, lastCollisionTime:0
+        };
+
+        const p1ScoreEl = document.getElementById('p1-score'), p2ScoreEl = document.getElementById('p2-score');
+        const timerEl = document.getElementById('timer'), gemsLeftEl = document.getElementById('gems-left-count');
+        const winnerMsg = document.getElementById('winner-message'), winnerText = document.getElementById('winner-text');
+        const p1EffectBadge = document.getElementById('p1-effect'), p2EffectBadge = document.getElementById('p2-effect');
+        const p1ShieldBadge = document.getElementById('p1-shield'), p2ShieldBadge = document.getElementById('p2-shield');
+        const notificationDiv = document.getElementById('powerup-notification');
+        const startOverlay = document.getElementById('start-overlay');
+        const minimapCanvas = document.getElementById('minimap-canvas'), ctx = minimapCanvas.getContext('2d');
+        const pauseCenterBtn = document.getElementById('pause-btn-center');
+        const resetCenterBtn = document.getElementById('reset-btn-center');
+        const exitCenterBtn = document.getElementById('exit-btn-center');
+        const musicGameBtn = document.getElementById('music-toggle-game');
+
+        function showNotification(msg, isError=false) {
+            notificationDiv.style.opacity='1';
+            notificationDiv.textContent=msg;
+            notificationDiv.style.color=isError?'#ffaa88':'#aaffdd';
+            setTimeout(()=>notificationDiv.style.opacity='0',2000);
+        }
+
+        function togglePause() {
+            if (!gameStarted) return;
+            state.paused = !state.paused;
+            pauseCenterBtn.textContent = state.paused ? '▶️ RESUME' : '⏸️ PAUSE';
+        }
+
+        function initMusic() {
+            try {
+                audioElement = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+                audioElement.loop = true;
+                audioElement.volume = 0.3;
+                audioElement.load();
+            } catch(e) { console.log("Music load error:", e); }
+        }
+        
+        function setMusicEnabled(enabled) {
+            musicEnabled = enabled;
+            if (audioElement) {
+                if (enabled && gameStarted && state.gameActive) {
+                    audioElement.play().catch(e=>console.log("Audio play blocked:", e));
+                } else {
+                    audioElement.pause();
+                }
+            }
+            const musicBtns = document.querySelectorAll('.music-toggle, .music-toggle-game, #music-toggle-start');
+            musicBtns.forEach(btn => { if(btn) btn.textContent = musicEnabled ? '🎵 MUSIC ON' : '🔇 MUSIC OFF'; });
+        }
+        
+        function toggleMusic() { setMusicEnabled(!musicEnabled); }
+
+        // Three.js Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x9bb7d4);
+        scene.fog = new THREE.FogExp2(0xbdd4e8,0.008);
+        
+        const renderer1 = new THREE.WebGLRenderer({antialias:true});
+        const renderer2 = new THREE.WebGLRenderer({antialias:true});
+        renderer1.setSize(window.innerWidth/2, window.innerHeight);
+        renderer2.setSize(window.innerWidth/2, window.innerHeight);
+        renderer1.shadowMap.enabled=true; renderer2.shadowMap.enabled=true;
+        document.getElementById('player1-view').appendChild(renderer1.domElement);
+        document.getElementById('player2-view').appendChild(renderer2.domElement);
+        
+        const cam1 = new THREE.PerspectiveCamera(62, (window.innerWidth/2)/window.innerHeight, 0.2, 200);
+        const cam2 = new THREE.PerspectiveCamera(62, (window.innerWidth/2)/window.innerHeight, 0.2, 200);
+        
+        const ambient = new THREE.AmbientLight(0x88aacc,0.65);
+        scene.add(ambient);
+        const mainLight = new THREE.DirectionalLight(0xfff5e8,0.95);
+        mainLight.position.set(18,28,15);
+        mainLight.castShadow=true;
+        scene.add(mainLight);
+        
+        const groundMat = new THREE.MeshStandardMaterial({color:0x9ac0cd, roughness:0.55});
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(100,100), groundMat);
+        ground.rotation.x = -Math.PI/2;
+        ground.position.y = -0.5;
+        ground.receiveShadow=true;
+        scene.add(ground);
+        
+        function createTree(x,z) {
+            const group = new THREE.Group();
+            const trunkMat = new THREE.MeshStandardMaterial({color:0x8b5e3c});
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.9,1.2,4.0), trunkMat);
+            trunk.position.y=2.0; trunk.castShadow=true;
+            group.add(trunk);
+            const leafMat = new THREE.MeshStandardMaterial({color:0x7c9e6e});
+            const l1=new THREE.Mesh(new THREE.ConeGeometry(1.5,2.2,8), leafMat);
+            l1.position.y=3.8; l1.castShadow=true;
+            group.add(l1);
+            group.position.set(x,0,z);
+            return group;
+        }
+        
+        for(let i=0;i<C.TREE_COUNT;i++){
+            let x,z, safe;
+            do{
+                x=(Math.random()-0.5)*86;
+                z=(Math.random()-0.5)*86;
+                safe = Math.abs(x) < C.MAP_BOUNDARY-2 && Math.abs(z) < C.MAP_BOUNDARY-2;
+                if(Math.hypot(x + 16, z + 14) < 7) safe = false;
+                if(Math.hypot(x - 18, z - 16) < 7) safe = false;
+                for(let t of state.trees) if(Math.hypot(x-t.x, z-t.z) < 3.5) safe=false;
+            }while(!safe);
+            const tree = createTree(x,z);
+            scene.add(tree);
+            state.trees.push({x,z,radius:1.2,mesh:tree});
+            state.obstacles.push({x,z,radius:1.2,mesh:tree});
+        }
+        
+        // REALISTIC HUMAN MODEL
+        class RealisticHuman {
+            constructor(scene, primaryColor, accentColor, startPos, hatColor) {
+                this.group = new THREE.Group();
+                this.phase = 0;
+                const torsoMat = new THREE.MeshStandardMaterial({color: primaryColor, roughness: 0.3});
+                const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.75, 1.7, 12), torsoMat);
+                torso.position.y = 0.95; torso.castShadow = true;
+                this.group.add(torso);
+                const scarf = new THREE.Mesh(new THREE.TorusKnotGeometry(0.65, 0.12, 40, 8, 2, 3), new THREE.MeshStandardMaterial({color: 0xcc6644}));
+                scarf.position.set(0, 1.6, 0.55); scarf.rotation.x = 0.2;
+                this.group.add(scarf);
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.64, 48, 48), new THREE.MeshStandardMaterial({color: 0xf5cf9f}));
+                head.position.y = 1.92; head.castShadow = true;
+                this.group.add(head);
+                this.leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.9, 6), new THREE.MeshStandardMaterial({color: primaryColor}));
+                this.leftArm.position.set(-0.92, 1.55, 0); this.group.add(this.leftArm);
+                this.rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.9, 6), new THREE.MeshStandardMaterial({color: primaryColor}));
+                this.rightArm.position.set(0.92, 1.55, 0); this.group.add(this.rightArm);
+                this.leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.32, 1.0, 6), new THREE.MeshStandardMaterial({color: 0x3a2a1a}));
+                this.leftLeg.position.set(-0.5, 0.0, 0); this.group.add(this.leftLeg);
+                this.rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.32, 1.0, 6), new THREE.MeshStandardMaterial({color: 0x3a2a1a}));
+                this.rightLeg.position.set(0.5, 0.0, 0); this.group.add(this.rightLeg);
+                const hatBase = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1.15, 0.27, 8), new THREE.MeshStandardMaterial({color: hatColor}));
+                hatBase.position.y = 2.34; this.group.add(hatBase);
+                const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.78, 0.48, 8), new THREE.MeshStandardMaterial({color: hatColor}));
+                hatCrown.position.y = 2.6; this.group.add(hatCrown);
+                this.group.position.set(startPos.x, 0, startPos.z);
+                scene.add(this.group);
+            }
+            update(delta, moving, targetAngle) {
+                let diff = targetAngle - this.group.rotation.y;
+                while(diff > Math.PI) diff -= Math.PI * 2;
+                while(diff < -Math.PI) diff += Math.PI * 2;
+                this.group.rotation.y += diff * delta * 9;
+                if(moving) {
+                    this.phase += delta * 13;
+                    const swing = Math.sin(this.phase);
+                    this.leftArm.rotation.x = swing * 1.0;
+                    this.rightArm.rotation.x = -swing * 1.0;
+                    this.leftLeg.rotation.x = -swing * 0.85;
+                    this.rightLeg.rotation.x = swing * 0.85;
+                } else {
+                    this.leftArm.rotation.x *= 0.92;
+                    this.rightArm.rotation.x *= 0.92;
+                    this.leftLeg.rotation.x *= 0.92;
+                    this.rightLeg.rotation.x *= 0.92;
+                }
+            }
+        }
+        
+        const human1 = new RealisticHuman(scene, 0xdaa520, 0xffcc88, {x: -16, z: -14}, 0x8b5a2b);
+        const human2 = new RealisticHuman(scene, 0x3a86ff, 0x88aaff, {x: 18, z: 16}, 0x4a6a8b);
+        
+        // Realistic Bear Model
+        function createRealisticBear(x,z) {
+            const group = new THREE.Group();
+            const furMat = new THREE.MeshStandardMaterial({color: 0x6b4c3b, roughness: 0.7});
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.9, 32, 32), furMat);
+            body.scale.set(1.3, 0.9, 1.5);
+            body.position.y = 0.65;
+            body.castShadow = true;
+            group.add(body);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.75, 32, 32), furMat);
+            head.position.set(0, 0.95, 1.1);
+            head.castShadow = true;
+            group.add(head);
+            const snoutMat = new THREE.MeshStandardMaterial({color: 0x5a3e2a});
+            const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.8, 12), snoutMat);
+            snout.position.set(0, 0.85, 1.55);
+            group.add(snout);
+            const noseMat = new THREE.MeshStandardMaterial({color: 0x221111});
+            const nose = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 24), noseMat);
+            nose.position.set(0, 0.78, 1.92);
+            group.add(nose);
+            group.position.set(x, 0, z);
+            group.scale.set(1.1, 1.1, 1.1);
+            return group;
+        }
+        
+        function spawnBear(){
+            if(!state.gameActive||state.paused||state.bears.length>=5) return;
+            let x,z, safe;
+            do{
+                x=(Math.random()-0.5)*(C.MAP_BOUNDARY-6);
+                z=(Math.random()-0.5)*(C.MAP_BOUNDARY-6);
+                safe = true;
+                for(let ob of state.obstacles) if(Math.hypot(x-ob.x,z-ob.z)<2.5) safe=false;
+                if(Math.hypot(x-human1.group.position.x, z-human1.group.position.z)<6) safe=false;
+                if(Math.hypot(x-human2.group.position.x, z-human2.group.position.z)<6) safe=false;
+            }while(!safe);
+            const mesh = createRealisticBear(x,z);
+            scene.add(mesh);
+            state.bears.push({mesh, x, z, attackTimer:0});
+        }
+        
+        function createGem(x,z) {
+            const group = new THREE.Group();
+            const gemMat = new THREE.MeshStandardMaterial({color:0xffaa33, emissive:0xff8844, emissiveIntensity:0.5, metalness:0.8});
+            const gem = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55,0), gemMat);
+            gem.castShadow=true;
+            group.add(gem);
+            group.position.set(x,0.5,z);
+            return group;
+        }
+        
+        function resetGems() {
+            for(let g of state.gems) scene.remove(g.mesh);
+            state.gems = [];
+            for(let i=0;i<C.TOTAL_GEMS;i++){
+                let x,z, safe;
+                do{
+                    x=(Math.random()-0.5)*82;
+                    z=(Math.random()-0.5)*82;
+                    safe = Math.abs(x)<C.MAP_BOUNDARY-2 && Math.abs(z)<C.MAP_BOUNDARY-2;
+                    for(let ob of state.obstacles) if(Math.hypot(x-ob.x, z-ob.z) < 2.0) safe=false;
+                }while(!safe);
+                const gem = createGem(x,z);
+                scene.add(gem);
+                state.gems.push({mesh:gem, collected:false, x, z});
+            }
+            gemsLeftEl.textContent = state.gems.filter(g=>!g.collected).length;
+        }
+        
+        // Power-ups - all 7 types (no swap)
+        const powerTypes = ['boost', 'slow', 'steal', 'cut', 'teleport', 'magnet', 'shield'];
+        const powerColors = {
+            boost: 0xffaa66, slow: 0x66aaff, steal: 0xaa66ff, cut: 0x88aa66, 
+            teleport: 0xff66cc, magnet: 0xffaa44, shield: 0x44ccdd
+        };
+        
+        function createPowerup(x, z, type) {
+            const group = new THREE.Group();
+            const color = powerColors[type] || 0xffaa44;
+            const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 0), 
+                new THREE.MeshStandardMaterial({color, emissive: color, emissiveIntensity: 0.8, metalness: 0.3, roughness: 0.2}));
+            core.castShadow = true;
+            group.add(core);
+            
+            // Add rotating rings for better visibility
+            const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.05, 16, 32), 
+                new THREE.MeshStandardMaterial({color, emissive: color, emissiveIntensity: 0.5}));
+            ring1.rotation.x = Math.PI / 2;
+            group.add(ring1);
+            
+            const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.04, 16, 32), 
+                new THREE.MeshStandardMaterial({color, emissive: color, emissiveIntensity: 0.4}));
+            ring2.rotation.z = Math.PI / 2;
+            group.add(ring2);
+            
+            group.userData = { ring1, ring2, rotSpeed: 1.5 + Math.random() };
+            group.position.set(x, 0.7, z);
+            return group;
+        }
+        
+        function spawnPowerup() {
+            if (!state.gameActive || state.paused || state.powerups.length >= C.MAX_POWERUPS) return;
+            let x, z, safe;
+            let attempts = 0;
+            do {
+                x = (Math.random() - 0.5) * 82;
+                z = (Math.random() - 0.5) * 82;
+                safe = Math.abs(x) < C.MAP_BOUNDARY - 2.5 && Math.abs(z) < C.MAP_BOUNDARY - 2.5;
+                for (let ob of state.obstacles) if (Math.hypot(x - ob.x, z - ob.z) < 2.2) safe = false;
+                for (let p of state.powerups) if (Math.hypot(x - p.x, z - p.z) < 2.5) safe = false;
+                for (let gem of state.gems) if (!gem.collected && Math.hypot(x - gem.x, z - gem.z) < 1.8) safe = false;
+                attempts++;
+                if (attempts > 100) break;
+            } while (!safe);
+            
+            const type = powerTypes[Math.floor(Math.random() * powerTypes.length)];
+            const mesh = createPowerup(x, z, type);
+            scene.add(mesh);
+            state.powerups.push({ mesh, type, x, z, life: 18 });
+        }
+        
+        function checkCollision(x,z, r=0.85){
+            if(Math.abs(x)>C.MAP_BOUNDARY-1.2 || Math.abs(z)>C.MAP_BOUNDARY-1.2) return true;
+            for(let ob of state.obstacles){
+                if(Math.hypot(x-ob.x, z-ob.z) < r + ob.radius) return true;
+            }
+            return false;
+        }
+        
+        function applyEffect(pid, type) {
+            const nowSec = performance.now() / 1000;
+            const isP1 = pid === 1;
+            const badge = isP1 ? p1EffectBadge : p2EffectBadge;
+            
+            switch(type) {
+                case 'boost':
+                    (isP1 ? state.p1Effects : state.p2Effects).push({type: 'boost', endTime: nowSec + C.POWERUP_DURATION});
+                    if (isP1) state.p1SpeedMult = C.SPEED_BOOST_MULT;
+                    else state.p2SpeedMult = C.SPEED_BOOST_MULT;
+                    showNotification(`⚡ PLAYER ${pid} SPEED BOOST!`);
+                    badge.innerHTML = '⚡ SPEED!';
+                    setTimeout(() => { if (badge.innerHTML === '⚡ SPEED!') badge.innerHTML = ''; }, C.POWERUP_DURATION * 1000);
+                    break;
+                    
+                case 'shield':
+                    if (isP1) state.p1ShieldEnd = nowSec + C.SHIELD_DURATION;
+                    else state.p2ShieldEnd = nowSec + C.SHIELD_DURATION;
+                    showNotification(`🛡️ PLAYER ${pid} GAINED SHIELD!`);
+                    badge.innerHTML = '🛡️ SHIELD!';
+                    setTimeout(() => { if (badge.innerHTML === '🛡️ SHIELD!') badge.innerHTML = ''; }, C.SHIELD_DURATION * 1000);
+                    break;
+                    
+                case 'magnet':
+                    let collected = false;
+                    const pos = isP1 ? human1.group.position : human2.group.position;
+                    for (let gem of state.gems) {
+                        if (!gem.collected && Math.hypot(pos.x - gem.x, pos.z - gem.z) < C.MAGNET_RADIUS) {
+                            gem.collected = true;
+                            scene.remove(gem.mesh);
+                            if (isP1) state.p1Score++;
+                            else state.p2Score++;
+                            collected = true;
+                        }
+                    }
+                    if (isP1) p1ScoreEl.textContent = state.p1Score;
+                    else p2ScoreEl.textContent = state.p2Score;
+                    gemsLeftEl.textContent = state.gems.filter(g => !g.collected).length;
+                    showNotification(collected ? `🧲 PLAYER ${pid} MAGNET COLLECTED GEMS!` : `🧲 No gems nearby!`, !collected);
+                    badge.innerHTML = '🧲 MAGNET!';
+                    setTimeout(() => { if (badge.innerHTML === '🧲 MAGNET!') badge.innerHTML = ''; }, 2000);
+                    break;
+                    
+                case 'teleport':
+                    let nx, nz;
+                    do {
+                        nx = (Math.random() - 0.5) * (C.MAP_BOUNDARY - 5);
+                        nz = (Math.random() - 0.5) * (C.MAP_BOUNDARY - 5);
+                    } while (checkCollision(nx, nz, 0.85));
+                    if (isP1) human1.group.position.set(nx, 0, nz);
+                    else human2.group.position.set(nx, 0, nz);
+                    showNotification(`🌀 PLAYER ${pid} TELEPORTED!`);
+                    badge.innerHTML = '🌀 TELE!';
+                    setTimeout(() => { if (badge.innerHTML === '🌀 TELE!') badge.innerHTML = ''; }, 2000);
+                    break;
+                    
+                case 'steal':
+                    if (isP1 && state.p2Score > 0) {
+                        state.p1Score++;
+                        state.p2Score--;
+                        p1ScoreEl.textContent = state.p1Score;
+                        p2ScoreEl.textContent = state.p2Score;
+                        showNotification(`💰 PLAYER ${pid} STOLE A GEM!`);
+                    } else if (!isP1 && state.p1Score > 0) {
+                        state.p2Score++;
+                        state.p1Score--;
+                        p2ScoreEl.textContent = state.p2Score;
+                        p1ScoreEl.textContent = state.p1Score;
+                        showNotification(`💰 PLAYER ${pid} STOLE A GEM!`);
+                    } else {
+                        showNotification(`⚠️ No gems to steal!`, true);
+                    }
+                    badge.innerHTML = '💀 STOLE!';
+                    setTimeout(() => { if (badge.innerHTML === '💀 STOLE!') badge.innerHTML = ''; }, 2000);
+                    break;
+                    
+                case 'cut':
+                    let nearest = null;
+                    let minDist = C.TREE_CUT_RADIUS;
+                    const cutPos = isP1 ? human1.group.position : human2.group.position;
+                    for (let t of state.trees) {
+                        const d = Math.hypot(cutPos.x - t.x, cutPos.z - t.z);
+                        if (d < minDist) {
+                            minDist = d;
+                            nearest = t;
+                        }
+                    }
+                    if (nearest) {
+                        const idx = state.obstacles.findIndex(o => o.mesh === nearest.mesh);
+                        if (idx !== -1) state.obstacles.splice(idx, 1);
+                        scene.remove(nearest.mesh);
+                        state.cutTrees.push({
+                            mesh: nearest.mesh, x: nearest.x, z: nearest.z,
+                            radius: nearest.radius, endTime: nowSec + C.TREE_CUT_DURATION
+                        });
+                        showNotification(`🪓 PLAYER ${pid} CUT A TREE!`);
+                        badge.innerHTML = '🪓 CUT!';
+                        setTimeout(() => { if (badge.innerHTML === '🪓 CUT!') badge.innerHTML = ''; }, 2000);
+                    } else {
+                        showNotification(`🌲 No trees nearby!`, true);
+                    }
+                    break;
+                    
+                case 'slow':
+                    const oppEffects = isP1 ? state.p2Effects : state.p1Effects;
+                    oppEffects.push({type: 'slow', endTime: nowSec + C.POWERUP_DURATION});
+                    if (isP1) state.p2SpeedMult = C.SPEED_SLOW_MULT;
+                    else state.p1SpeedMult = C.SPEED_SLOW_MULT;
+                    showNotification(`🐢 PLAYER ${pid} SLOWED OPPONENT!`);
+                    const oppBadge = isP1 ? p2EffectBadge : p1EffectBadge;
+                    oppBadge.innerHTML = '🐢 SLOW!';
+                    setTimeout(() => { if (oppBadge.innerHTML === '🐢 SLOW!') oppBadge.innerHTML = ''; }, C.POWERUP_DURATION * 1000);
+                    break;
+            }
+        }
+        
+        let timerInterval = null, bearInterval = null, powerupInterval = null;
+        
+        function fullResetGame() {
+            state.p1Score = 0;
+            state.p2Score = 0;
+            state.timeLeft = selectedTime;
+            state.p1Effects = [];
+            state.p2Effects = [];
+            state.p1SpeedMult = 1;
+            state.p2SpeedMult = 1;
+            state.p1ShieldEnd = 0;
+            state.p2ShieldEnd = 0;
+            state.p1DizzyEnd = 0;
+            state.p2DizzyEnd = 0;
+            state.powerups = [];
+            state.bears = [];
+            state.cutTrees = [];
+            
+            p1ScoreEl.textContent = '0';
+            p2ScoreEl.textContent = '0';
+            timerEl.textContent = selectedTime;
+            winnerMsg.style.display = 'none';
+            p1EffectBadge.innerHTML = '';
+            p2EffectBadge.innerHTML = '';
+            human1.group.position.set(-16, 0, -14);
+            human2.group.position.set(18, 0, 16);
+            
+            for (let cut of state.cutTrees) if (cut.mesh) scene.add(cut.mesh);
+            state.obstacles = state.trees.map(t => ({x: t.x, z: t.z, radius: t.radius, mesh: t.mesh}));
+            
+            resetGems();
+            for (let p of state.powerups) scene.remove(p.mesh);
+            for (let b of state.bears) scene.remove(b.mesh);
+            state.powerups = [];
+            state.bears = [];
+            for (let i = 0; i < 2; i++) spawnBear();
+            
+            // Spawn abundant initial power-ups
+            for (let i = 0; i < 12; i++) spawnPowerup();
+            state.lastPowerupSpawn = performance.now() / 1000;
+            
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (state.gameActive && !state.paused && state.timeLeft > 0) {
+                    state.timeLeft--;
+                    timerEl.textContent = state.timeLeft;
+                    if (state.timeLeft <= 0) endGame();
+                }
+            }, 1000);
+            
+            if (bearInterval) clearInterval(bearInterval);
+            bearInterval = setInterval(() => {
+                if (!state.paused && state.gameActive) spawnBear();
+            }, C.BEAR_SPAWN_INTERVAL * 1000);
+            
+            if (powerupInterval) clearInterval(powerupInterval);
+            powerupInterval = setInterval(() => {
+                if (!state.paused && state.gameActive && state.powerups.length < C.MAX_POWERUPS) {
+                    spawnPowerup();
+                }
+            }, C.POWERUP_SPAWN_INTERVAL * 1000);
+            
+            state.gameActive = true;
+            if (musicEnabled && audioElement) audioElement.play().catch(e => console.log);
+        }
+        
+        function endGame() {
+            state.gameActive = false;
+            let winnerStr = state.p1Score > state.p2Score ? "❄️ FROST WARDEN VICTORY!" : (state.p2Score > state.p1Score ? "⛄ ICE RANGER TRIUMPHS!" : "✨ FROZEN TIE!");
+            winnerText.textContent = winnerStr;
+            winnerMsg.style.display = 'block';
+        }
+        
+        function startGame() {
+            startOverlay.style.display = 'none';
+            gameStarted = true;
+            fullResetGame();
+        }
+        
+        function exitGame() {
+            if (confirm("Exit game?")) {
+                if (timerInterval) clearInterval(timerInterval);
+                if (bearInterval) clearInterval(bearInterval);
+                if (powerupInterval) clearInterval(powerupInterval);
+                if (audioElement) audioElement.pause();
+                gameStarted = false;
+                state.gameActive = false;
+                startOverlay.style.display = 'flex';
+            }
+        }
+        
+        function updateMinimap() {
+            ctx.clearRect(0, 0, 260, 260);
+            ctx.fillStyle = '#2a3a2a';
+            ctx.fillRect(0, 0, 260, 260);
+            ctx.strokeStyle = '#88aa88';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 260; i += 26) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 260); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(260, i); ctx.stroke();
+            }
+            
+            state.obstacles.forEach(ob => {
+                let x = (ob.x / C.MAP_BOUNDARY) * 110 + 130, z = (ob.z / C.MAP_BOUNDARY) * 110 + 130;
+                ctx.fillStyle = '#2a5a2a';
+                ctx.beginPath(); ctx.rect(x - 2, z - 2, 4, 4); ctx.fill();
+            });
+            
+            state.gems.forEach(g => {
+                if (!g.collected) {
+                    let x = (g.x / C.MAP_BOUNDARY) * 110 + 130, z = (g.z / C.MAP_BOUNDARY) * 110 + 130;
+                    ctx.fillStyle = '#ffaa33';
+                    ctx.beginPath(); ctx.arc(x, z, 4, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#ffdd88';
+                    ctx.beginPath(); ctx.arc(x, z, 2, 0, Math.PI * 2); ctx.fill();
+                }
+            });
+            
+            state.powerups.forEach(p => {
+                let x = (p.x / C.MAP_BOUNDARY) * 110 + 130, z = (p.z / C.MAP_BOUNDARY) * 110 + 130;
+                ctx.fillStyle = '#ff66cc';
+                ctx.beginPath(); ctx.arc(x, z, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(x, z, 2, 0, Math.PI * 2); ctx.fill();
+            });
+            
+            state.bears.forEach(b => {
+                let x = (b.x / C.MAP_BOUNDARY) * 110 + 130, z = (b.z / C.MAP_BOUNDARY) * 110 + 130;
+                ctx.fillStyle = '#8B5A2B';
+                ctx.beginPath(); ctx.arc(x, z, 6, 0, Math.PI * 2); ctx.fill();
+            });
+            
+            let p1x = (human1.group.position.x / C.MAP_BOUNDARY) * 110 + 130, p1z = (human1.group.position.z / C.MAP_BOUNDARY) * 110 + 130;
+            ctx.fillStyle = '#ffaa66';
+            ctx.beginPath(); ctx.arc(p1x, p1z, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px monospace';
+            ctx.fillText('1', p1x - 4, p1z + 5);
+            
+            let p2x = (human2.group.position.x / C.MAP_BOUNDARY) * 110 + 130, p2z = (human2.group.position.z / C.MAP_BOUNDARY) * 110 + 130;
+            ctx.fillStyle = '#66aaff';
+            ctx.beginPath(); ctx.arc(p2x, p2z, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('2', p2x - 4, p2z + 5);
+            
+            ctx.strokeStyle = '#ffdd99';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(2, 2, 256, 256);
+        }
+        
+        let lastFrameTime = performance.now();
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
+        
+        function animate() {
+            const now = performance.now();
+            let delta = Math.min(0.033, (now - lastFrameTime) / 1000);
+            lastFrameTime = now;
+            
+            if (gameStarted && state.gameActive && !state.paused) {
+                let m1 = false, m2 = false, dx1 = 0, dz1 = 0, dx2 = 0, dz2 = 0;
+                if (keys.w) { dz1 -= 1; m1 = true; }
+                if (keys.s) { dz1 += 1; m1 = true; }
+                if (keys.a) { dx1 -= 1; m1 = true; }
+                if (keys.d) { dx1 += 1; m1 = true; }
+                if (keys.ArrowUp) { dz2 -= 1; m2 = true; }
+                if (keys.ArrowDown) { dz2 += 1; m2 = true; }
+                if (keys.ArrowLeft) { dx2 -= 1; m2 = true; }
+                if (keys.ArrowRight) { dx2 += 1; m2 = true; }
+                
+                const sp1 = C.BASE_SPEED * state.p1SpeedMult;
+                const sp2 = C.BASE_SPEED * state.p2SpeedMult;
+                
+                if (dx1 !== 0 || dz1 !== 0) {
+                    let len = Math.hypot(dx1, dz1);
+                    dx1 /= len; dz1 /= len;
+                    let nx = human1.group.position.x + dx1 * sp1 * delta;
+                    let nz = human1.group.position.z + dz1 * sp1 * delta;
+                    if (!checkCollision(nx, nz, 0.85)) {
+                        human1.group.position.x = nx;
+                        human1.group.position.z = nz;
+                    }
+                }
+                if (dx2 !== 0 || dz2 !== 0) {
+                    let len = Math.hypot(dx2, dz2);
+                    dx2 /= len; dz2 /= len;
+                    let nx = human2.group.position.x + dx2 * sp2 * delta;
+                    let nz = human2.group.position.z + dz2 * sp2 * delta;
+                    if (!checkCollision(nx, nz, 0.85)) {
+                        human2.group.position.x = nx;
+                        human2.group.position.z = nz;
+                    }
+                }
+                
+                human1.update(delta, m1, Math.atan2(dx1, dz1));
+                human2.update(delta, m2, Math.atan2(dx2, dz2));
+                
+                const nowSec = now / 1000;
+                const dist = Math.hypot(human1.group.position.x - human2.group.position.x, human1.group.position.z - human2.group.position.z);
+                if (dist < 1.5 && (nowSec - state.lastCollisionTime) > 3.0) {
+                    state.lastCollisionTime = nowSec;
+                    state.p1DizzyEnd = nowSec + C.DIZZY_DURATION;
+                    state.p2DizzyEnd = nowSec + C.DIZZY_DURATION;
+                    showNotification(`🌀 DIZZY! Players collided!`, true);
+                }
+                
+                let p1Sp = 1, p2Sp = 1;
+                state.p1Effects = state.p1Effects.filter(e => {
+                    if (e.endTime > nowSec) {
+                        if (e.type === 'boost') p1Sp = C.SPEED_BOOST_MULT;
+                        if (e.type === 'slow') p1Sp = C.SPEED_SLOW_MULT;
+                        return true;
+                    }
+                    return false;
+                });
+                state.p2Effects = state.p2Effects.filter(e => {
+                    if (e.endTime > nowSec) {
+                        if (e.type === 'boost') p2Sp = C.SPEED_BOOST_MULT;
+                        if (e.type === 'slow') p2Sp = C.SPEED_SLOW_MULT;
+                        return true;
+                    }
+                    return false;
+                });
+                if (state.p1DizzyEnd > nowSec) p1Sp *= C.DIZZY_SLOW_MULT;
+                if (state.p2DizzyEnd > nowSec) p2Sp *= C.DIZZY_SLOW_MULT;
+                state.p1SpeedMult = p1Sp;
+                state.p2SpeedMult = p2Sp;
+                
+                p1ShieldBadge.style.opacity = state.p1ShieldEnd > nowSec ? '1' : '0.3';
+                p2ShieldBadge.style.opacity = state.p2ShieldEnd > nowSec ? '1' : '0.3';
+                
+                // Collect gems
+                for (let gem of state.gems) {
+                    if (gem.collected) continue;
+                    if (Math.hypot(human1.group.position.x - gem.x, human1.group.position.z - gem.z) < C.COLLECT_RADIUS) {
+                        gem.collected = true;
+                        scene.remove(gem.mesh);
+                        state.p1Score++;
+                        p1ScoreEl.textContent = state.p1Score;
+                    } else if (Math.hypot(human2.group.position.x - gem.x, human2.group.position.z - gem.z) < C.COLLECT_RADIUS) {
+                        gem.collected = true;
+                        scene.remove(gem.mesh);
+                        state.p2Score++;
+                        p2ScoreEl.textContent = state.p2Score;
+                    }
+                }
+                gemsLeftEl.textContent = state.gems.filter(g => !g.collected).length;
+                if (state.gems.filter(g => !g.collected).length === 0) endGame();
+                
+                // Collect power-ups - FIXED: proper iteration to avoid skip
+                for (let i = state.powerups.length - 1; i >= 0; i--) {
+                    const p = state.powerups[i];
+                    const d1 = Math.hypot(human1.group.position.x - p.x, human1.group.position.z - p.z);
+                    const d2 = Math.hypot(human2.group.position.x - p.x, human2.group.position.z - p.z);
+                    
+                    if (d1 < C.COLLECT_RADIUS) {
+                        scene.remove(p.mesh);
+                        state.powerups.splice(i, 1);
+                        applyEffect(1, p.type);
+                        break;
+                    } else if (d2 < C.COLLECT_RADIUS) {
+                        scene.remove(p.mesh);
+                        state.powerups.splice(i, 1);
+                        applyEffect(2, p.type);
+                        break;
+                    }
+                }
+                
+                // Update powerups animation
+                for (let p of state.powerups) {
+                    p.life -= delta;
+                    if (p.life <= 0) {
+                        scene.remove(p.mesh);
+                        const idx = state.powerups.indexOf(p);
+                        if (idx !== -1) state.powerups.splice(idx, 1);
+                    } else {
+                        p.mesh.rotation.y += 0.05;
+                        p.mesh.rotation.x = Math.sin(Date.now() * 0.005) * 0.2;
+                        p.mesh.position.y = 0.7 + Math.sin(Date.now() * 0.008) * 0.15;
+                        if (p.mesh.userData.ring1) {
+                            p.mesh.userData.ring1.rotation.z += 0.03;
+                            p.mesh.userData.ring2.rotation.x += 0.02;
+                        }
+                    }
+                }
+                
+                // Bears update
+                for (let i = 0; i < state.bears.length; i++) {
+                    const b = state.bears[i];
+                    const d1 = Math.hypot(b.x - human1.group.position.x, b.z - human1.group.position.z);
+                    const d2 = Math.hypot(b.x - human2.group.position.x, b.z - human2.group.position.z);
+                    let tx, tz;
+                    if (d1 < d2) { tx = human1.group.position.x; tz = human1.group.position.z; }
+                    else { tx = human2.group.position.x; tz = human2.group.position.z; }
+                    const dx = tx - b.x, dz = tz - b.z;
+                    const len = Math.hypot(dx, dz);
+                    if (len > 0.1) {
+                        const move = C.BEAR_SPEED * delta;
+                        b.x += (dx / len) * move;
+                        b.z += (dz / len) * move;
+                    }
+                    b.x = Math.max(-C.MAP_BOUNDARY + 2, Math.min(C.MAP_BOUNDARY - 2, b.x));
+                    b.z = Math.max(-C.MAP_BOUNDARY + 2, Math.min(C.MAP_BOUNDARY - 2, b.z));
+                    b.mesh.position.set(b.x, 0, b.z);
+                    const angle = Math.atan2(dx, dz);
+                    b.mesh.rotation.y = angle;
+                    if (b.attackTimer > 0) b.attackTimer -= delta;
+                    const p1d = Math.hypot(b.x - human1.group.position.x, b.z - human1.group.position.z);
+                    const p2d = Math.hypot(b.x - human2.group.position.x, b.z - human2.group.position.z);
+                    if (p1d < 1.6 && b.attackTimer <= 0) {
+                        b.attackTimer = C.BEAR_ATTACK_COOLDOWN;
+                        if (state.p1ShieldEnd > nowSec) showNotification(`🛡️ Shield blocked bear!`);
+                        else if (state.p1Score > 0) {
+                            state.p1Score--;
+                            p1ScoreEl.textContent = state.p1Score;
+                            showNotification(`🐻 Bear stole from P1!`, true);
+                        }
+                    }
+                    if (p2d < 1.6 && b.attackTimer <= 0) {
+                        b.attackTimer = C.BEAR_ATTACK_COOLDOWN;
+                        if (state.p2ShieldEnd > nowSec) showNotification(`🛡️ Shield blocked bear!`);
+                        else if (state.p2Score > 0) {
+                            state.p2Score--;
+                            p2ScoreEl.textContent = state.p2Score;
+                            showNotification(`🐻 Bear stole from P2!`, true);
+                        }
+                    }
+                }
+                
+                // Regrow cut trees
+                for (let i = 0; i < state.cutTrees.length; i++) {
+                    if (nowSec >= state.cutTrees[i].endTime) {
+                        scene.add(state.cutTrees[i].mesh);
+                        state.obstacles.push({
+                            x: state.cutTrees[i].x, z: state.cutTrees[i].z,
+                            radius: state.cutTrees[i].radius, mesh: state.cutTrees[i].mesh
+                        });
+                        state.cutTrees.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+            
+            // Animate gems
+            for (let gem of state.gems) {
+                if (!gem.collected) {
+                    gem.mesh.position.y = 0.5 + Math.sin(performance.now() * 0.004) * 0.25;
+                    gem.mesh.rotation.y = performance.now() * 0.003;
+                }
+            }
+            
+            cam1.position.set(human1.group.position.x, 12, human1.group.position.z + 7);
+            cam1.lookAt(human1.group.position.x, 1.2, human1.group.position.z);
+            cam2.position.set(human2.group.position.x, 12, human2.group.position.z + 7);
+            cam2.lookAt(human2.group.position.x, 1.2, human2.group.position.z);
+            
+            updateMinimap();
+            renderer1.render(scene, cam1);
+            renderer2.render(scene, cam2);
+            requestAnimationFrame(animate);
+        }
+        
+        window.addEventListener('keydown', e => {
+            if (e.key === 'p' || e.key === 'P') { if (gameStarted) togglePause(); e.preventDefault(); return; }
+            if (keys.hasOwnProperty(e.key)) { keys[e.key] = true; e.preventDefault(); }
+        });
+        window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) { keys[e.key] = false; e.preventDefault(); } });
+        window.addEventListener('resize', () => {
+            const w = window.innerWidth / 2, h = window.innerHeight;
+            cam1.aspect = w / h; cam2.aspect = w / h;
+            cam1.updateProjectionMatrix(); cam2.updateProjectionMatrix();
+            renderer1.setSize(w, h); renderer2.setSize(w, h);
+        });
+        
+        initMusic();
+        setMusicEnabled(true);
+        document.getElementById('start-game-btn').addEventListener('click', startGame);
+        document.getElementById('music-toggle-start').addEventListener('click', toggleMusic);
+        document.getElementById('exit-start-btn').addEventListener('click', exitGame);
+        pauseCenterBtn.addEventListener('click', togglePause);
+        resetCenterBtn.addEventListener('click', () => { if (gameStarted) fullResetGame(); });
+        exitCenterBtn.addEventListener('click', exitGame);
+        musicGameBtn.addEventListener('click', toggleMusic);
+        
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedTime = parseInt(btn.dataset.time);
+                if (!gameStarted) timerEl.textContent = selectedTime;
+            });
+        });
+        
+        startOverlay.style.display = 'flex';
+        gameStarted = false;
+        animate();
+    </script>
+</body>
+</html>
